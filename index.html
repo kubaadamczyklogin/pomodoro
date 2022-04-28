@@ -172,10 +172,11 @@
     class EditableTimebox extends React.Component {
       state = {
         title: "",
-        taskDuration: 25,
+        taskDuration: 0.1,
         isEditing: true,
         isRunning: false,
         isPaused: false,
+        isFinish: false,
         pausesCount: 0,
         elapsedTimeInSeconds: 0
       };
@@ -197,6 +198,12 @@
       };
 
       handleStart = (event) => {
+        if (this.state.isFinish) {
+          this.setState({
+            pausesCount: 0,
+            elapsedTimeInSeconds: 0
+          });
+        }
         this.setState({
           isRunning: true
         });
@@ -215,9 +222,20 @@
 
       startTimer() {
         this.intervalId = window.setInterval(() => {
-          this.setState((prevState) => ({
-            elapsedTimeInSeconds: prevState.elapsedTimeInSeconds + 0.1
-          }));
+          let timeChanged = this.state.elapsedTimeInSeconds + 0.1;
+          if (timeChanged >= this.state.taskDuration * 60) {
+            new Audio("dzwonek-knog-oi-6367.mp3").play();
+            this.setState({
+              isRunning: false,
+              isPaused: false,
+              isFinish: true
+            });
+            this.stopTimer();
+          } else {
+            this.setState((prevState) => ({
+              elapsedTimeInSeconds: timeChanged
+            }));
+          }
         }, 100);
       }
 
