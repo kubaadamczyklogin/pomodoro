@@ -92,7 +92,7 @@
           <label>
             Ile minut?{" "}
             <input
-              value={taskDuration}
+              value={taskDuration / (60 * 1000)}
               onChange={onChangeTaskDuration}
               type="number"
             />
@@ -127,18 +127,18 @@
         isPaused,
         isRunning,
         pausesCount,
-        elapsedTimeInSeconds,
+        timeLeft,
         onEdit,
         onStart,
         onStop,
         onPause
       } = props;
-      const totalTimeInSeconds = taskDuration * 60;
-      const timeLeftInSeconds = totalTimeInSeconds - elapsedTimeInSeconds;
-      const minutesLeft = Math.floor(timeLeftInSeconds / 60);
-      const secondsLeft = Math.floor(timeLeftInSeconds % 60);
+
+      //const timeLeftInSeconds = taskDuration - elapsedTime;
+      const minutesLeft = Math.floor(timeLeft / (60 * 1000));
+      const secondsLeft = Math.floor((timeLeft % (60 * 1000)) / 1000);
       const progressInPercent =
-        (elapsedTimeInSeconds / totalTimeInSeconds) * 100.0;
+        ((taskDuration - timeLeft) / taskDuration) * 100.0;
 
       return (
         <div className={"Timebox " + (isEditing ? "inactive" : "")}>
@@ -161,10 +161,10 @@
           <button onClick={onStop} disabled={!isRunning}>
             Stop
           </button>
-          <button onClick={onPause} disabled={!isRunning}>
-            {isPaused ? "Wznów" : "Pauzuj"}
-          </button>
-          Liczba przerw: {pausesCount}
+          {/* <button onClick={onPause} disabled={!isRunning}>
+             {isPaused ? "Wznów" : "Pauzuj"}
+           </button>
+           Liczba przerw: {pausesCount} */}
         </div>
       );
     }
@@ -172,13 +172,16 @@
     class EditableTimebox extends React.Component {
       state = {
         title: "",
-        taskDuration: 25,
+        taskDuration: this.props.defaultTaskDuration,
         isEditing: true,
         isRunning: false,
         isPaused: false,
         isFinish: false,
         pausesCount: 0,
-        elapsedTimeInSeconds: 0
+        timeLeft: this.props.defaultTaskDuration,
+        startTime: 0,
+        finishTime: 0,
+        timeoutId: false
       };
 
       handleTitleOnChange = (event) => {
@@ -186,7 +189,7 @@
       };
 
       handleTaskDurationOnChange = (event) => {
-        this.setState({ taskDuration: event.target.value });
+        this.setState({ taskDuration: event.target.value * 60 * 1000 });
       };
 
       handleEdit = (event) => {
@@ -198,43 +201,52 @@
       };
 
       handleStart = (event) => {
-        if (this.state.isFinish) {
-          this.setState({
-            pausesCount: 0,
-            elapsedTimeInSeconds: 0
-          });
-        }
+        let currentTime = Date.now();
+
+        let newTimeoutId = setTimeout(function () {
+          new Audio("dzwonek-knog-oi-6367.mp3").play();
+        }, this.state.taskDuration);
+
         this.setState({
-          isRunning: true
+          pausesCount: 0,
+          timeLeft: this.state.taskDuration,
+          isRunning: true,
+          startTime: currentTime,
+          finishTime: currentTime + this.state.taskDuration,
+          timeoutId: newTimeoutId
         });
+
         this.startTimer();
       };
 
       handleStop = (event) => {
+        clearTimeout(this.state.timeoutId);
         this.setState({
           isRunning: false,
           isPaused: false,
           pausesCount: 0,
-          elapsedTimeInSeconds: 0
+          timeLeft: this.state.taskDuration
         });
         this.stopTimer();
       };
 
       startTimer() {
         this.intervalId = window.setInterval(() => {
-          let timeChanged = this.state.elapsedTimeInSeconds + 0.1;
-          if (timeChanged >= this.state.taskDuration * 60) {
+          let currentTime = Date.now(),
+            newTimeLeft = this.state.finishTime - currentTime;
+          if (newTimeLeft <= 0) {
             new Audio("dzwonek-knog-oi-6367.mp3").play();
             this.setState({
               isRunning: false,
               isPaused: false,
-              isFinish: true
+              isFinish: true,
+              timeLeft: 0
             });
             this.stopTimer();
           } else {
-            this.setState((prevState) => ({
-              elapsedTimeInSeconds: timeChanged
-            }));
+            this.setState({
+              timeLeft: newTimeLeft
+            });
           }
         }, 100);
       }
@@ -268,7 +280,7 @@
           isRunning,
           isPaused,
           pausesCount,
-          elapsedTimeInSeconds
+          timeLeft
         } = this.state;
         return (
           <>
@@ -287,7 +299,7 @@
               isRunning={isRunning}
               isPaused={isPaused}
               pausesCount={pausesCount}
-              elapsedTimeInSeconds={elapsedTimeInSeconds}
+              timeLeft={timeLeft}
               onEdit={this.handleEdit}
               onStart={this.handleStart}
               onStop={this.handleStop}
@@ -301,7 +313,7 @@
     function App() {
       return (
         <div className="App">
-          <EditableTimebox />
+          <EditableTimebox defaultTaskDuration={25 * 60 * 1000} />
         </div>
       );
     }
